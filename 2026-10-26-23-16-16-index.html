@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>LORD EMPERI</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<style>
+  :root { --red:#ff1f3d; --dark:#07000a; --card:#14030a; --line:#3a0a16; --txt:#ffe9ec; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
+  html,body { margin:0; height:100%; background:var(--dark); color:var(--txt); font-family:-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
+  body { background:radial-gradient(circle at 50% 35%, #2a0610 0%, #07000a 65%); }
+  #app { height:100%; display:flex; flex-direction:column; padding:env(safe-area-inset-top) 0 0; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; gap:8px; }
+  .brand { font-weight:900; letter-spacing:3px; color:var(--red); text-shadow:0 0 12px #ff1f3d88; font-size:15px; }
+  #ton-connect { min-width:0; }
+  .screen { flex:1; display:none; flex-direction:column; overflow:hidden; }
+  .screen.on { display:flex; }
+  /* TAP */
+  .balance { text-align:center; margin-top:4px; }
+  .balance .n { font-size:46px; font-weight:900; text-shadow:0 0 24px #ff1f3d99; }
+  .balance .n small { font-size:18px; color:var(--red); margin-left:6px; }
+  .balance .s { color:#c98a94; font-size:13px; }
+  .stage { flex:1; position:relative; display:flex; align-items:center; justify-content:center; min-height:0; }
+  #coin { width:min(72vw,300px); aspect-ratio:1; border-radius:50%; background:url(skin.jpg) center/cover; box-shadow:0 0 40px #ff1f3d88, 0 0 120px #ff1f3d33, inset 0 0 40px #000; border:2px solid #ff1f3d55; transition:transform .06s ease-out; will-change:transform; animation:idle 3s ease-in-out infinite; position:relative; }
+  #coin.press { transition:none; }
+  @keyframes idle { 0%,100%{ box-shadow:0 0 40px #ff1f3d88,0 0 120px #ff1f3d33,inset 0 0 40px #000;} 50%{ box-shadow:0 0 60px #ff1f3dcc,0 0 160px #ff1f3d55,inset 0 0 40px #000;} }
+  .ring { position:absolute; border:3px solid #ff1f3d; border-radius:50%; pointer-events:none; animation:ring .5s ease-out forwards; }
+  @keyframes ring { from{ transform:scale(.3); opacity:.9;} to{ transform:scale(1.6); opacity:0;} }
+  .float { position:absolute; pointer-events:none; font-weight:900; font-size:30px; color:#fff; text-shadow:0 0 10px var(--red),0 0 20px var(--red); animation:up .9s ease-out forwards; z-index:5; }
+  @keyframes up { from{ transform:translate(-50%,0) scale(.8); opacity:1;} to{ transform:translate(-50%,-110px) scale(1.4); opacity:0;} }
+  .spark { position:absolute; width:6px; height:6px; border-radius:50%; background:#ff3b55; box-shadow:0 0 8px #ff1f3d; pointer-events:none; z-index:4; }
+  .energy { padding:8px 18px 12px; }
+  .bar { height:14px; background:#1a0509; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .bar i { display:block; height:100%; width:100%; background:linear-gradient(90deg,#8b0018,#ff1f3d); box-shadow:0 0 12px #ff1f3d; transition:width .15s; }
+  .energy .t { display:flex; justify-content:space-between; font-size:13px; color:#c98a94; margin-bottom:5px; }
+  /* PANELS */
+  .panel { flex:1; overflow:auto; padding:10px 14px 16px; }
+  h2 { margin:6px 0 12px; font-size:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .muted { color:#c98a94; font-size:13px; }
+  button.btn { background:linear-gradient(180deg,#ff2a47,#b00020); color:#fff; border:0; border-radius:12px; padding:12px 16px; font-weight:800; font-size:15px; box-shadow:0 0 14px #ff1f3d55; cursor:pointer; }
+  button.btn:disabled { opacity:.4; box-shadow:none; }
+  button.btn.ghost { background:#1d0710; border:1px solid var(--line); box-shadow:none; }
+  input[type=number] { width:100%; background:#0d0206; border:1px solid var(--line); color:#fff; border-radius:12px; padding:13px; font-size:18px; margin:10px 0; outline:none; }
+  .ref { word-break:break-all; background:#0d0206; border:1px dashed var(--line); border-radius:10px; padding:10px; font-size:12px; margin:10px 0; }
+  nav { display:flex; background:#0b0206; border-top:1px solid var(--line); padding:6px 6px calc(6px + env(safe-area-inset-bottom)); }
+  nav button { flex:1; background:none; border:0; color:#8d5560; font-size:12px; padding:6px 0; font-weight:700; }
+  nav button b { display:block; font-size:20px; }
+  nav button.on { color:var(--red); text-shadow:0 0 10px #ff1f3d88; }
+  #toast { position:fixed; left:50%; top:70px; transform:translateX(-50%); background:#240810; border:1px solid var(--red); padding:10px 16px; border-radius:12px; z-index:50; display:none; max-width:90%; text-align:center; }
+  #block { position:fixed; inset:0; background:#07000a; display:none; align-items:center; justify-content:center; text-align:center; padding:30px; z-index:99; font-size:18px; }
+  body.turbo #coin{box-shadow:0 0 70px #ffb000,0 0 160px #ff1f3d,inset 0 0 40px #000;border-color:#ffb000}
+  .task{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .task.done{opacity:.45}
+  .task .acts{display:flex;gap:6px}
+  button.btn.sm{padding:9px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="block">⚠️ Откройте игру через Telegram-бота</div>
+<div id="toast"></div>
+<div id="app">
+  <header>
+    <div class="brand">LORD EMPERI</div>
+    <div id="ton-connect"></div>
+  </header>
+
+  <!-- ТАП -->
+  <section id="s-tap" class="screen on">
+    <div class="balance">
+      <div class="n"><span id="coins">0</span><small>LORD</small></div>
+      <div class="s">+<span id="power">1</span> за тап</div>
+    </div>
+    <div class="stage" id="stage"><div id="coin"></div></div>
+    <div class="energy">
+      <div class="t"><span>⚡ Энергия</span><span><span id="en">0</span>/<span id="enMax">0</span></span></div>
+      <div class="bar"><i id="enBar"></i></div>
+    </div>
+  </section>
+
+  <!-- УЛУЧШЕНИЯ -->
+  <section id="s-up" class="screen"><div class="panel">
+    <h2>🚀 Буст</h2>
+    <div class="card"><div class="muted" style="margin-bottom:8px">Ежедневные бусты</div>
+      <div class="row"><div><b>⚡ Полная энергия</b><div class="muted">Осталось сегодня: <span id="refillLeft">0</span></div></div><button class="btn" id="refillBtn">Заряд</button></div>
+      <div class="row"><div><b>🔥 Турбо ×<span id="turboMult">3</span></b><div class="muted"><span id="turboSec">30</span> сек · осталось: <span id="turboLeft">0</span></div></div><button class="btn" id="turboBtn">Турбо</button></div>
+    </div>
+    <div class="card"><div class="muted" style="margin-bottom:8px">Улучшения</div>
+      <div class="row"><div><b>Мульти-тап</b><div class="muted">Уровень <span id="tapLvl">1</span> · +1 к тапу</div></div><button class="btn" id="upTap">🔴 <span id="tapCost">0</span></button></div>
+      <div class="row"><div><b>Запас энергии</b><div class="muted">Уровень <span id="enLvl">1</span> · +500 макс.</div></div><button class="btn" id="upEn">🔴 <span id="enCost">0</span></button></div>
+    </div>
+  </div></section>
+
+  <section id="s-tasks" class="screen"><div class="panel">
+    <h2>✅ Задания</h2>
+    <div id="taskList"><div class="muted">Загрузка…</div></div>
+  </div></section>
+
+  <!-- ДРУЗЬЯ -->
+  <section id="s-ref" class="screen"><div class="panel">
+    <h2>👥 Друзья</h2>
+    <div class="card">
+      <div>Приглашай друзей и получай <b id="bonus">0</b> LORD за каждого — друг тоже получит бонус.</div>
+      <div class="muted" style="margin-top:6px">Приглашено: <b id="refCount">0</b></div>
+      <div class="ref" id="refLink"></div>
+      <div class="row">
+        <button class="btn" id="shareBtn" style="flex:1">📨 Пригласить</button>
+        <button class="btn ghost" id="copyBtn">Копировать</button>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- ВЫВОД -->
+  <section id="s-wd" class="screen"><div class="panel">
+    <h2>💎 Вывод средств</h2>
+    <div class="card">
+      <div class="row"><span class="muted">Баланс</span><b><span id="wdBal">0</span> LORD</b></div>
+      <div class="row"><span class="muted">Курс</span><b>10 000 LORD = 1 TON</b></div>
+      <div class="row"><span class="muted">Лимиты</span><b><span id="wdMin"></span> – <span id="wdMax"></span> LORD</b></div>
+      <div class="row"><span class="muted">Кошелёк</span><b id="wdWallet">не подключён</b></div>
+      <button class="btn ghost" id="connectBtn" style="width:100%;margin:6px 0">💎 Подключить Tonkeeper</button>
+      <input type="number" id="wdAmount" inputmode="numeric" placeholder="Сумма в LORD">
+      <div class="muted" id="wdTon">≈ 0 TON</div>
+      <button class="btn" id="wdBtn" style="width:100%;margin-top:12px">Вывести на Tonkeeper</button>
+      <div class="muted" id="hist" style="margin-top:12px"></div>
+    </div>
+  </div></section>
+
+  <nav>
+    <button data-s="tap" class="on"><b>🔴</b>Тап</button>
+    <button data-s="up"><b>🚀</b>Буст</button>
+    <button data-s="tasks"><b>✅</b>Задания</button>
+    <button data-s="ref"><b>👥</b>Друзья</button>
+    <button data-s="wd"><b>💎</b>Вывод</button>
+  </nav>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.ready(); tg?.expand();
+try { tg?.setHeaderColor('#07000a'); tg?.setBackgroundColor('#07000a'); tg?.disableVerticalSwipes?.(); } catch {}
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.floor(n).toLocaleString('ru-RU');
+let S = null;          // состояние с сервера
+let pending = 0;       // тапы, ещё не отправленные
+let local = { coins: 0, energy: 0 };
+let lastRegen = Date.now();
+let turboUntil = 0;
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+if (!tg?.initData) $('block').style.display = 'flex';
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2600); }
+
+async function api(path, body) {
+  const r = await fetch('/api/' + path, { method:'POST', headers:{ 'Content-Type':'application/json', 'x-init-data': tg?.initData || '' }, body: JSON.stringify(body || {}) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Ошибка');
+  return j;
+}
+
+function apply(s) {
+  S = s; turboUntil = Date.now() + s.boost.turboMs; local.coins = s.coins; local.energy = s.energy; lastRegen = Date.now();
+  $('power').textContent = s.tapPower; $('enMax').textContent = s.maxEnergy;
+  $('tapLvl').textContent = s.tapLevel; $('enLvl').textContent = s.energyLevel;
+  $('tapCost').textContent = fmt(s.tapCost); $('enCost').textContent = fmt(s.energyCost);
+  $('bonus').textContent = fmt(s.config.bonus); $('refCount').textContent = s.referrals; $('refLink').textContent = s.refLink;
+  $('refillLeft').textContent = s.boost.refillLeft; $('turboLeft').textContent = s.boost.turboLeft;
+  $('turboMult').textContent = s.boost.turboMult; $('turboSec').textContent = s.boost.turboSeconds;
+  $('refillBtn').disabled = !s.boost.refillLeft; $('turboBtn').disabled = !s.boost.turboLeft || s.boost.turboMs > 0;
+  $('hist').innerHTML = (s.withdrawals || []).map((w) => '• ' + fmt(w.coins) + ' LORD → ' + w.ton + ' TON · ' + esc(w.status)).join('<br>');
+  $('wdMin').textContent = fmt(s.config.min); $('wdMax').textContent = fmt(s.config.max);
+  $('wdWallet').textContent = s.wallet ? s.wallet.slice(0,6) + '…' + s.wallet.slice(-4) : 'не подключён';
+  render();
+}
+function render() {
+  if (S) { const m = Date.now() < turboUntil ? S.boost.turboMult : 1; $('power').textContent = S.tapPower * m; document.body.classList.toggle('turbo', m > 1); }
+  $('coins').textContent = fmt(local.coins);
+  $('wdBal').textContent = fmt(local.coins);
+  $('en').textContent = fmt(local.energy);
+  $('enBar').style.width = (S ? Math.min(100, local.energy / S.maxEnergy * 100) : 0) + '%';
+}
+
+/* ---------- ЗВУК (WebAudio, без файлов) ---------- */
+let ac;
+function tapSound() {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    const t = ac.currentTime;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(380 + Math.random() * 90, t);
+    o.frequency.exponentialRampToValueAtTime(120, t + 0.12);
+    g.gain.setValueAtTime(0.35, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.15);
+    const o2 = ac.createOscillator(), g2 = ac.createGain();
+    o2.type = 'sine'; o2.frequency.setValueAtTime(1200, t); o2.frequency.exponentialRampToValueAtTime(600, t + 0.06);
+    g2.gain.setValueAtTime(0.12, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    o2.connect(g2).connect(ac.destination); o2.start(t); o2.stop(t + 0.08);
+  } catch {}
+}
+
+/* ---------- ТАП + АНИМАЦИЯ ---------- */
+const coin = $('coin'), stage = $('stage');
+function burst(x, y, amount) {
+  const rect = stage.getBoundingClientRect();
+  const px = x - rect.left, py = y - rect.top;
+  const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + amount;
+  f.style.left = px + 'px'; f.style.top = (py - 20) + 'px'; stage.appendChild(f); setTimeout(() => f.remove(), 900);
+  const r = document.createElement('div'); r.className = 'ring';
+  r.style.cssText = `left:${px-40}px;top:${py-40}px;width:80px;height:80px`; stage.appendChild(r); setTimeout(() => r.remove(), 500);
+  for (let i = 0; i < 8; i++) {
+    const s = document.createElement('div'); s.className = 'spark';
+    s.style.left = px + 'px'; s.style.top = py + 'px'; stage.appendChild(s);
+    const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 60;
+    s.animate([{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px) scale(0)`, opacity:0 }], { duration:500 + Math.random()*250, easing:'ease-out' }).onfinish = () => s.remove();
+  }
+}
+function doTap(x, y, cx, cy) {
+  if (!S) return;
+  const p = S.tapPower * (Date.now() < turboUntil ? S.boost.turboMult : 1);
+  if (local.energy < p) { tg?.HapticFeedback?.notificationOccurred('error'); return; }
+  local.energy -= p; local.coins += p; pending++;
+  // наклон монеты в сторону касания
+  const r = coin.getBoundingClientRect();
+  const dx = (cx - (r.left + r.width / 2)) / (r.width / 2), dy = (cy - (r.top + r.height / 2)) / (r.height / 2);
+  coin.classList.add('press');
+  coin.style.transform = `perspective(500px) rotateX(${-dy * 14}deg) rotateY(${dx * 14}deg) scale(.94)`;
+  requestAnimationFrame(() => { coin.classList.remove('press'); setTimeout(() => coin.style.transform = '', 70); });
+  burst(x, y, p); tapSound(); tg?.HapticFeedback?.impactOccurred('light'); render();
+}
+coin.addEventListener('touchstart', (e) => { e.preventDefault(); for (const t of e.changedTouches) doTap(t.clientX, t.clientY, t.clientX, t.clientY); }, { passive:false });
+coin.addEventListener('mousedown', (e) => { if (!('ontouchstart' in window)) doTap(e.clientX, e.clientY, e.clientX, e.clientY); });
+
+/* ---------- синхронизация и реген ---------- */
+setInterval(() => {
+  if (!S) return;
+  const now = Date.now();
+  local.energy = Math.min(S.maxEnergy, local.energy + (now - lastRegen) / 1000 * S.regen);
+  lastRegen = now; render();
+}, 250);
+let syncing = false;
+async function flush() {
+  if (syncing || !pending || !S) return;
+  syncing = true; const n = pending; pending = 0;
+  try { const s = await api('tap', { count: n }); const keep = pending * s.tapPower * (s.boost.turboMs > 0 ? s.boost.turboMult : 1); apply(s); local.coins += keep; local.energy = Math.max(0, local.energy - keep); render(); }
+  catch (e) { pending += n; }
+  syncing = false;
+}
+setInterval(flush, 1000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+
+/* ---------- навигация ---------- */
+document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('on', s.id === 's-' + b.dataset.s));
+  tg?.HapticFeedback?.selectionChanged();
+});
+
+/* ---------- улучшения ---------- */
+async function upgrade(type) { try { await flush(); apply(await api('upgrade', { type })); toast('Улучшено! 🔥'); } catch (e) { toast(e.message); } }
+$('upTap').onclick = () => upgrade('tap');
+$('upEn').onclick = () => upgrade('energy');
+
+/* ---------- рефералы ---------- */
+$('shareBtn').onclick = () => {
+  const url = 'https://t.me/share/url?url=' + encodeURIComponent(S.refLink) + '&text=' + encodeURIComponent('Стань LORD EMPERI! Тапай и выводи TON 🔴');
+  tg ? tg.openTelegramLink(url) : window.open(url);
+};
+$('copyBtn').onclick = async () => { try { await navigator.clipboard.writeText(S.refLink); toast('Ссылка скопирована'); } catch { toast(S.refLink); } };
+
+/* ---------- TON CONNECT (Tonkeeper) ---------- */
+const tonUI = new TON_CONNECT_UI.TonConnectUI({
+  manifestUrl: location.origin + '/tonconnect-manifest.json',
+  buttonRootId: 'ton-connect',
+  actionsConfiguration: { twaReturnUrl: 'https://t.me/YOUR_BOT_USERNAME' }, // ← username твоего бота
+});
+tonUI.onStatusChange(async (wallet) => {
+  if (!S) return;
+  try {
+    // Адрес в user-friendly формате (non-bounceable) для выплат
+    const addr = wallet ? TON_CONNECT_UI.toUserFriendlyAddress(wallet.account.address, false) : null;
+    apply(await api('wallet', { address: addr }));
+  } catch (e) { toast(e.message); }
+});
+
+/* ---------- вывод ---------- */
+$('wdAmount').oninput = () => { const v = Number($('wdAmount').value) || 0; $('wdTon').textContent = '≈ ' + (v / S.config.coinsPerTon).toFixed(4) + ' TON'; };
+$('wdBtn').onclick = async () => {
+  const amount = Math.floor(Number($('wdAmount').value));
+  if (!S.wallet) { toast('Подключите Tonkeeper'); tonUI.openModal(); return; }
+  if (amount < S.config.min) return toast('Минимум ' + fmt(S.config.min) + ' LORD');
+  if (amount > S.config.max) return toast('Максимум ' + fmt(S.config.max) + ' LORD');
+  try {
+    await flush();
+    const s = await api('withdraw', { amount });
+    apply(s); $('wdAmount').value = '';
+    toast('Заявка создана: ' + s.withdrawal.ton + ' TON');
+    tg?.HapticFeedback?.notificationOccurred('success');
+  } catch (e) { toast(e.message); }
+};
+
+
+/* ---------- буст ---------- */
+async function boost(type) { try { await flush(); apply(await api('boost', { type })); toast(type === 'turbo' ? 'Турбо активировано 🔥' : 'Энергия заряжена ⚡'); } catch (e) { toast(e.message); } }
+$('refillBtn').onclick = () => boost('refill');
+$('turboBtn').onclick = () => boost('turbo');
+
+/* ---------- задания ---------- */
+function openLink(url) { if (!tg) return window.open(url, '_blank'); /^https:\/\/t\.me\//.test(url) ? tg.openTelegramLink(url) : tg.openLink(url); }
+async function loadTasks() {
+  try {
+    const list = await (await fetch('/api/tasks', { headers: { 'x-init-data': tg?.initData || '' } })).json();
+    const box = $('taskList'); box.innerHTML = '';
+    if (!Array.isArray(list) || !list.length) { box.innerHTML = '<div class="muted">Заданий пока нет — загляни позже.</div>'; return; }
+    list.forEach((t) => {
+      const el = document.createElement('div'); el.className = 'card task' + (t.done ? ' done' : '');
+      el.innerHTML = '<div><b>' + esc(t.title) + '</b><div class="muted">+' + fmt(t.reward) + ' LORD</div></div>';
+      if (t.done) { el.innerHTML += '<span>✅</span>'; }
+      else {
+        const acts = document.createElement('div'); acts.className = 'acts';
+        const go = document.createElement('button'); go.className = 'btn ghost sm'; go.textContent = 'Перейти';
+        go.onclick = async () => { try { await api('task/start', { id: t.id }); } catch (e) { return toast(e.message); } if (t.url) openLink(t.url); toast('Выполни задание и нажми «Забрать»'); };
+        const claim = document.createElement('button'); claim.className = 'btn sm'; claim.textContent = 'Забрать';
+        claim.onclick = async () => { try { apply(await api('task/claim', { id: t.id })); toast('Награда +' + fmt(t.reward) + ' 🎉'); tg?.HapticFeedback?.notificationOccurred('success'); loadTasks(); } catch (e) { toast(e.message); } };
+        acts.append(go, claim); el.append(acts);
+      }
+      box.append(el);
+    });
+  } catch (e) { $('taskList').innerHTML = '<div class="muted">Не удалось загрузить задания</div>'; }
+}
+document.querySelector('nav button[data-s="tasks"]').addEventListener('click', loadTasks);
+
+/* ---------- подключение Tonkeeper ---------- */
+$('connectBtn').onclick = () => { try { tonUI.openSingleWalletModal('tonkeeper'); } catch { tonUI.openModal(); } };
+
+/* ---------- старт ---------- */
+(async () => {
+  if (!tg?.initData) return;
+  try { apply(await api('auth')); } catch (e) { toast(e.message); }
+})();
+</script>
+</body>
+</html>
